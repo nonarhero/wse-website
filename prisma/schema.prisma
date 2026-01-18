@@ -1,0 +1,257 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  WRITER
+  REVIEWER
+}
+
+enum CourseType {
+  GENERAL_ENGLISH
+  IELTS
+  BUSINESS
+  YOUTH
+  ONLINE
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  REJECTED
+}
+
+enum NotificationType {
+  LEAD_NEW
+  ARTICLE_PUBLISHED
+  SYSTEM
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          UserRole @default(WRITER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  articles      Article[]
+  createdLeads  Lead[]   @relation("CreatedBy")
+  updatedLeads  Lead[]   @relation("UpdatedBy")
+  notifications Notification[]
+}
+
+model Course {
+  id          String     @id @default(cuid())
+  title       String
+  description String?    @db.Text
+  type        CourseType
+  levels      Int        @default(1)
+  price       Float?
+  imageUrl    String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  enrollments Enrollment[]
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  name        String
+  address     String   @db.Text
+  phone       String
+  email       String?
+  mapUrl      String?
+  latitude    Float?
+  longitude   Float?
+  hours       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  leads       Lead[]
+}
+
+model Lead {
+  id          String     @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String
+  phone       String
+  branchId    String
+  branch      Location   @relation(fields: [branchId], references: [id])
+  occupation  String?
+  url         String?    @db.Text
+  utmMedium   String?    @map("utm_medium")
+  utmTerm     String?    @map("utm_term")
+  utmContent  String?    @map("utm_content")
+  utmCampaign String?    @map("utm_campaign")
+  pdpa        String?    // Y, ValidCall
+  status      LeadStatus @default(NEW)
+  notes       String?    @db.Text
+  createdById String?
+  createdBy   User?      @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?      @relation("UpdatedBy", fields: [updatedById], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  testResults CEFRTestResult[]
+
+  @@map("Lead")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  articles    Article[]
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  articles  Article[]
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  content     String        @db.Text
+  excerpt     String?       @db.Text
+  featuredImage String?
+  status      ArticleStatus @default(DRAFT)
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id])
+  categoryId String?
+  category   Category?      @relation(fields: [categoryId], references: [id])
+  tags        Tag[]
+  viewCount   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  publishedAt DateTime?
+}
+
+model Banner {
+  id          String   @id @default(cuid())
+  title       String
+  imageUrl    String
+  linkUrl     String?
+  position    String   // hero, sidebar, footer, etc.
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CEFRTest {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  questions   Json     // Store questions as JSON
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  results     CEFRTestResult[]
+}
+
+model CEFRTestResult {
+  id        String   @id @default(cuid())
+  testId    String
+  test      CEFRTest @relation(fields: [testId], references: [id])
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+  score     Int
+  level     String   // A1, A2, B1, B2, C1, C2
+  answers   Json     // Store answers as JSON
+  otpCode   String?
+  otpVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Ebook {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  fileUrl     String
+  coverImage  String?
+  downloadCount Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  downloads   EbookDownload[]
+}
+
+model EbookDownload {
+  id        String   @id @default(cuid())
+  ebookId   String
+  ebook     Ebook    @relation(fields: [ebookId], references: [id])
+  email     String
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+model TrackingTag {
+  id          String   @id @default(cuid())
+  name        String   // Google Tag, Facebook Pixel, TikTok, etc.
+  type        String   // google_tag, facebook_pixel, tiktok, custom
+  code        String   @db.Text
+  isActive    Boolean  @default(true)
+  position    String   // head, body
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id])
+  isRead    Boolean          @default(false)
+  linkUrl   String?
+  createdAt DateTime         @default(now())
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  email     String
+  name      String
+  phone     String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
