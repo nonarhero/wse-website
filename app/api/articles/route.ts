@@ -44,14 +44,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { tags, ...articleData } = body
+    const { tags, tagIds, ...articleData } = body
+
+    // Handle both tags and tagIds formats
+    const tagConnections = tags || tagIds || []
 
     const article = await prisma.article.create({
       data: {
         ...articleData,
         authorId: session.user.id,
-        tags: tags ? {
-          connect: tags.map((tagId: string) => ({ id: tagId })),
+        tags: tagConnections.length > 0 ? {
+          connect: tagConnections.map((tagId: string) => ({ id: tagId })),
         } : undefined,
       },
       include: {
@@ -61,7 +64,11 @@ export async function POST(request: NextRequest) {
       },
     })
     return NextResponse.json(article)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create article' }, { status: 500 })
+  } catch (error: any) {
+    console.error('Articles API POST Error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to create article',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 })
   }
 }
