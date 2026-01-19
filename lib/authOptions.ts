@@ -11,12 +11,33 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null
+          }
+
+          const user = await verifyUser(credentials.email, credentials.password)
+          
+          if (!user) {
+            return null
+          }
+
+          // Ensure all required fields are present
+          if (!user.id || !user.email || !user.name || !user.role) {
+            console.error('User missing required fields:', user)
+            return null
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          }
+        } catch (error) {
+          console.error('Authorization error:', error)
           return null
         }
-
-        const user = await verifyUser(credentials.email, credentials.password)
-        return user ? { id: user.id, email: user.email, name: user.name, role: user.role } : null
       },
     }),
   ],
@@ -29,11 +50,16 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as string
-        session.user.id = token.id as string
+      try {
+        if (session.user && token) {
+          session.user.role = (token.role as string) || ''
+          session.user.id = (token.id as string) || ''
+        }
+        return session
+      } catch (error) {
+        console.error('Session callback error:', error)
+        return session
       }
-      return session
     },
   },
   pages: {

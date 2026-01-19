@@ -26,12 +26,22 @@ export default function AdminLogin() {
 
       if (result?.error) {
         setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง')
-      } else {
-        router.push('/admin')
+        setLoading(false)
+        return
       }
-    } catch (error) {
-      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
-    } finally {
+
+      if (result?.ok) {
+        // Wait a bit for session to be set
+        await new Promise(resolve => setTimeout(resolve, 100))
+        // Use window.location for more reliable redirect
+        window.location.href = '/admin'
+      } else {
+        setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+        setLoading(false)
+      }
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setError(error?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
       setLoading(false)
     }
   }
